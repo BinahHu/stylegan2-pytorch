@@ -9,6 +9,7 @@ from torch.nn import functional as F
 from torch.autograd import Function
 
 from op import FusedLeakyReLU, fused_leaky_relu, upfirdn2d
+from vgg import VggNet
 
 
 class PixelNorm(nn.Module):
@@ -474,6 +475,7 @@ class Generator(nn.Module):
     def forward(
         self,
         styles,
+        content,
         return_latents=False,
         inject_index=None,
         truncation=1,
@@ -675,3 +677,56 @@ class Discriminator(nn.Module):
 
         return out
 
+
+class Encoder(nn.Module):
+    def __init__(self, vgg_path, latent_size, init_feat_size):
+        super(Encoder, self).__init__()
+
+        vgg = VggNet
+        vgg.load_state_dict(torch.load(vgg_path))
+        vgg = nn.Sequential(*list(vgg.children())[:31])
+
+        enc_layers = list(vgg.children())
+        self.enc_1 = nn.Sequential(*enc_layers[:4])  # input -> relu1_1
+        self.enc_2 = nn.Sequential(*enc_layers[4:11])  # relu1_1 -> relu2_1
+        self.enc_3 = nn.Sequential(*enc_layers[11:18])  # relu2_1 -> relu3_1
+        self.enc_4 = nn.Sequential(*enc_layers[18:31])  # relu3_1 -> relu4_1
+
+
+        # fix the encoder
+        for name in ['enc_1', 'enc_2', 'enc_3', 'enc_4']:
+            for param in getattr(self, name).parameters():
+                param.requires_grad = False
+
+        self.latent_size = latent_size
+        self.init_feat_size = init_feat_size
+
+        self.pool_style = nn.AdaptiveAvgPool2d(1)
+        self.pool_  = nn.AdaptiveAvgPool2d(self.init_feat_sizes)
+
+    # extract relu1_1, relu2_1, relu3_1, relu4_1 from input image
+    def encode_with_intermediate(self, input):
+        results = [input]
+        for i in range(4):
+            func = getattr(self, 'enc_{:d}'.format(i + 1))
+            results.append(func(results[-1]))
+        return results[1:]
+
+    # extract relu4_1 from input image
+    def encode(self, input):
+        for i in range(4):
+            input = getattr(self, 'enc_{:d}'.format(i + 1))(input)
+        return input
+
+
+    def forward(self, content, style):
+
+        style_feats = self.encode_with_intermediate(style)
+        content_feat = self.encode(content)
+
+        style_feat = style_feats[-1]
+        latent_code = self.pool_style(style_feat).view(-1, self.latent_size)
+        content_code = self.pool_content(content_feat)
+
+
+        return style_feats, content_feat, latent_code, content_code

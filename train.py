@@ -18,7 +18,7 @@ try:
 except ImportError:
     wandb = None
 
-from model import Generator, Discriminator
+from model import Generator, Discriminator, Encoder
 from dataset import MultiResolutionDataset
 from distributed import (
     get_rank,
@@ -80,6 +80,26 @@ def g_nonsaturating_loss(fake_pred):
 
     return loss
 
+def calc_mean_std(feat, eps=1e-5):
+    # eps is a small value added to the variance to avoid divide-by-zero.
+    size = feat.size()
+    assert (len(size) == 4)
+    N, C = size[:2]
+    feat_var = feat.view(N, C, -1).var(dim=2) + eps
+    feat_std = feat_var.sqrt().view(N, C, 1, 1)
+    feat_mean = feat.view(N, C, -1).mean(dim=2).view(N, C, 1, 1)
+    return feat_mean, feat_std
+
+def transfer_loss(g_t_feats, content_feat, style_feats):
+    loss_c = F.mse_loss(g_t_feats[-1], content_feat)
+
+    style_mean, style_std = calc_mean_std(style_feats)
+    target_mean, target_std = calc_mean_std(g_t_feats)
+
+    loss_s = F.mse_loss(style_mean, target_mean) + F.mse_loss(style_std, target_std)
+
+    return loss_c, loss_s
+
 
 def g_path_regularize(fake_img, latents, mean_path_length, decay=0.01):
     noise = torch.randn_like(fake_img) / math.sqrt(
@@ -120,7 +140,7 @@ def set_grad_none(model, targets):
             p.grad = None
 
 
-def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, device):
+def train(args, loader, encoder, generator, discriminator, g_optim, d_optim, g_ema, device):
     loader = sample_data(loader)
 
     pbar = range(args.iter)
@@ -148,7 +168,12 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         
     accum = 0.5 ** (32 / (10 * 1000))
 
-    sample_z = torch.randn(args.n_sample, args.latent, device=device)
+    # TODO: Use real data
+    # sample_z = torch.randn(args.n_sample, args.latent, device=device)
+    style_imgs_sample = torch.zeros(args.n_sample, 3, 256, 256)
+    content_imgs_sample = torch.zeros(args.n_sample, 3, 256, 256)
+
+    _1, _2, sample_z, sample_content = encoder(style_imgs_sample, content_imgs_sample)
 
     for idx in pbar:
         i = idx + args.start_iter
@@ -164,8 +189,12 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         requires_grad(generator, False)
         requires_grad(discriminator, True)
 
-        noise = mixing_noise(args.batch, args.latent, args.mixing, device)
-        fake_img, _ = generator(noise)
+        # TODO: Use real data
+        style_imgs = torch.zeros(args.batch, 3, 256, 256)
+        content_imgs = torch.zeros(args.batch, 3, 256, 256)
+        style_feats, content_feat, latent_code, content_code = encoder(style_imgs, content_imgs)
+        # noise = mixing_noise(args.batch, args.latent, args.mixing, device)
+        fake_img, _ = generator(latent_code, content_code)
         fake_pred = discriminator(fake_img)
 
         real_pred = discriminator(real_img)
@@ -196,10 +225,21 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
         requires_grad(generator, True)
         requires_grad(discriminator, False)
 
-        noise = mixing_noise(args.batch, args.latent, args.mixing, device)
-        fake_img, _ = generator(noise)
+        # TODO: Use real data
+        style_imgs = torch.zeros(args.batch, 3, 256, 256)
+        content_imgs = torch.zeros(args.batch, 3, 256, 256)
+        style_feats, content_feat, latent_code, content_code = encoder(style_imgs, content_imgs)
+        # noise = mixing_noise(args.batch, args.latent, args.mixing, device)
+        fake_img, _ = generator(latent_code, content_code)
         fake_pred = discriminator(fake_img)
         g_loss = g_nonsaturating_loss(fake_pred)
+
+        # TODO: Add style transfer loss
+        fake_style_feats, fake_content_feat, _1, _2 = encoder(fake_img, fake_img)
+        c_loss, s_loss = transfer_loss(fake_style_feats, content_feat, style_feats)
+
+        g_loss += args.content_weight * c_loss
+        g_loss += args.style_weight * s_loss
 
         loss_dict['g'] = g_loss
 
@@ -211,10 +251,14 @@ def train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, devic
 
         if g_regularize:
             path_batch_size = max(1, args.batch // args.path_batch_shrink)
-            noise = mixing_noise(
-                path_batch_size, args.latent, args.mixing, device
-            )
-            fake_img, latents = generator(noise, return_latents=True)
+            # TODO: Use real data
+            style_imgs = torch.zeros(path_batch_size, 3, 256, 256)
+            content_imgs = torch.zeros(path_batch_size, 3, 256, 256)
+            style_feats, content_feat, latent_code, content_code = encoder(style_imgs, content_imgs)
+            #noise = mixing_noise(
+            #    path_batch_size, args.latent, args.mixing, device
+            #)
+            fake_img, latents = generator(latent_code, content_code, return_latents=True)
 
             path_loss, mean_path_length, path_lengths = g_path_regularize(
                 fake_img, latents, mean_path_length
@@ -317,6 +361,9 @@ if __name__ == '__main__':
     parser.add_argument('--channel_multiplier', type=int, default=2)
     parser.add_argument('--wandb', action='store_true')
     parser.add_argument('--local_rank', type=int, default=0)
+    parser.add_argument('--vgg_path', type=str, default="")
+    parser.add_argument('--content_weight', type=float, default=10.0)
+    parser.add_argument('--style_weight', type=float, default=1.0)
 
     args = parser.parse_args()
 
@@ -330,9 +377,12 @@ if __name__ == '__main__':
 
     args.latent = 512
     args.n_mlp = 8
+    args.init_feat_size = 4
 
     args.start_iter = 0
 
+    encoder = Encoder(args.vgg_path, args.latent, args.init_feat_size).to(device)
+    encoder.eval()
     generator = Generator(
         args.size, args.latent, args.n_mlp, channel_multiplier=args.channel_multiplier
     ).to(device)
@@ -413,4 +463,4 @@ if __name__ == '__main__':
     if get_rank() == 0 and wandb is not None and args.wandb:
         wandb.init(project='stylegan 2')
 
-    train(args, loader, generator, discriminator, g_optim, d_optim, g_ema, device)
+    train(args, loader, encoder, generator, discriminator, g_optim, d_optim, g_ema, device)
