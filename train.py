@@ -361,7 +361,7 @@ if __name__ == '__main__':
     parser.add_argument('--channel_multiplier', type=int, default=2)
     parser.add_argument('--wandb', action='store_true')
     parser.add_argument('--local_rank', type=int, default=0)
-    parser.add_argument('--vgg_path', type=str, default="")
+    parser.add_argument('--vgg_path', type=str, default="/home/huzy/models/vgg_normalised.pth")
     parser.add_argument('--content_weight', type=float, default=10.0)
     parser.add_argument('--style_weight', type=float, default=1.0)
 
