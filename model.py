@@ -702,7 +702,7 @@ class Encoder(nn.Module):
         self.init_feat_size = init_feat_size
 
         self.pool_style = nn.AdaptiveAvgPool2d(1)
-        self.pool_  = nn.AdaptiveAvgPool2d(self.init_feat_size)
+        self.pool_content  = nn.AdaptiveAvgPool2d(self.init_feat_size)
 
     # extract relu1_1, relu2_1, relu3_1, relu4_1 from input image
     def encode_with_intermediate(self, input):
