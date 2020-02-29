@@ -190,8 +190,8 @@ def train(args, loader, encoder, generator, discriminator, g_optim, d_optim, g_e
         requires_grad(discriminator, True)
 
         # TODO: Use real data
-        style_imgs = torch.zeros(args.batch, 3, 256, 256)
-        content_imgs = torch.zeros(args.batch, 3, 256, 256)
+        style_imgs = torch.zeros(args.batch, 3, 256, 256).to(device)
+        content_imgs = torch.zeros(args.batch, 3, 256, 256).to(device)
         style_feats, content_feat, latent_code, content_code = encoder(style_imgs, content_imgs)
         # noise = mixing_noise(args.batch, args.latent, args.mixing, device)
         fake_img, _ = generator(latent_code, content_code)
@@ -226,8 +226,8 @@ def train(args, loader, encoder, generator, discriminator, g_optim, d_optim, g_e
         requires_grad(discriminator, False)
 
         # TODO: Use real data
-        style_imgs = torch.zeros(args.batch, 3, 256, 256)
-        content_imgs = torch.zeros(args.batch, 3, 256, 256)
+        style_imgs = torch.zeros(args.batch, 3, 256, 256).to(device)
+        content_imgs = torch.zeros(args.batch, 3, 256, 256).to(device)
         style_feats, content_feat, latent_code, content_code = encoder(style_imgs, content_imgs)
         # noise = mixing_noise(args.batch, args.latent, args.mixing, device)
         fake_img, _ = generator(latent_code, content_code)
@@ -251,8 +251,8 @@ def train(args, loader, encoder, generator, discriminator, g_optim, d_optim, g_e
         if g_regularize:
             path_batch_size = max(1, args.batch // args.path_batch_shrink)
             # TODO: Use real data
-            style_imgs = torch.zeros(path_batch_size, 3, 256, 256)
-            content_imgs = torch.zeros(path_batch_size, 3, 256, 256)
+            style_imgs = torch.zeros(path_batch_size, 3, 256, 256).to(device)
+            content_imgs = torch.zeros(path_batch_size, 3, 256, 256).to(device)
             style_feats, content_feat, latent_code, content_code = encoder(style_imgs, content_imgs)
             #noise = mixing_noise(
             #    path_batch_size, args.latent, args.mixing, device
