@@ -234,7 +234,6 @@ def train(args, loader, encoder, generator, discriminator, g_optim, d_optim, g_e
         fake_pred = discriminator(fake_img)
         g_loss = g_nonsaturating_loss(fake_pred)
 
-        # TODO: Add style transfer loss
         fake_style_feats, fake_content_feat, _1, _2 = encoder(fake_img, fake_img)
         c_loss, s_loss = transfer_loss(fake_style_feats, content_feat, style_feats)
 
