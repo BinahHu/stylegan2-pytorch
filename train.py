@@ -170,8 +170,8 @@ def train(args, loader, encoder, generator, discriminator, g_optim, d_optim, g_e
 
     # TODO: Use real data
     # sample_z = torch.randn(args.n_sample, args.latent, device=device)
-    style_imgs_sample = torch.zeros(args.n_sample, 3, 256, 256)
-    content_imgs_sample = torch.zeros(args.n_sample, 3, 256, 256)
+    style_imgs_sample = torch.zeros(args.n_sample, 3, 256, 256).to(device)
+    content_imgs_sample = torch.zeros(args.n_sample, 3, 256, 256).to(device)
 
     _1, _2, sample_z, sample_content = encoder(style_imgs_sample, content_imgs_sample)
 
