@@ -255,6 +255,8 @@ def train(args, loader, content_loader, style_loader,
         g_loss += args.style_weight * s_loss
 
         loss_dict['g'] = g_loss
+        loss_dict['c'] = c_loss
+        loss_dict['s'] = s_loss
 
         generator.zero_grad()
         g_loss.backward()

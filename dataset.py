@@ -5,6 +5,8 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 from pathlib import Path
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 class MultiResolutionDataset(Dataset):
@@ -58,7 +60,8 @@ class ImgDataset(Dataset):
 
     def __getitem__(self, index):
         path = self.paths[index]
-        img = Image.open(str(path)).convert('RGB')
+        img = Image.open(str(path))
+        img = img.convert('RGB')
         img = self.transform(img)
         return img
 

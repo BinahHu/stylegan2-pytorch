@@ -1,0 +1,1 @@
+scp lab:~/stylegann2-pytorch/sample/* ./res/
