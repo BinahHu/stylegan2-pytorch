@@ -309,11 +309,13 @@ def train(args, loader, content_loader, style_loader,
         real_score_val = loss_reduced['real_score'].mean().item()
         fake_score_val = loss_reduced['fake_score'].mean().item()
         path_length_val = loss_reduced['path_length'].mean().item()
+        c_loss_val = loss_reduced['c'].mean().item()
+        s_loss_val = loss_reduced['s'].mean().item()
 
         if get_rank() == 0:
             pbar.set_description(
                 (
-                    f'd: {d_loss_val:.4f}; g: {g_loss_val:.4f}; r1: {r1_val:.4f}; '
+                    f'd: {d_loss_val:.4f}; g: {g_loss_val:.4f}; c: {c_loss_val}; s: {s_loss_val}; r1: {r1_val:.4f}; '
                     f'path: {path_loss_val:.4f}; mean path: {mean_path_length_avg:.4f}'
                 )
             )

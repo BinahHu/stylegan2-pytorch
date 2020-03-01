@@ -1,1 +1,1 @@
-scp lab:~/stylegann2-pytorch/sample/* ./res/
+scp -r lab:~/stylegan2-pytorch/sample/*.png ./res/
