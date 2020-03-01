@@ -3,6 +3,8 @@ from io import BytesIO
 import lmdb
 from PIL import Image
 from torch.utils.data import Dataset
+from torchvision import transforms
+from pathlib import Path
 
 
 class MultiResolutionDataset(Dataset):
@@ -38,3 +40,30 @@ class MultiResolutionDataset(Dataset):
         img = self.transform(img)
 
         return img
+
+def train_transform():
+    transform_list = [
+        transforms.Resize(size=(512, 512)),
+        transforms.RandomCrop(256),
+        transforms.ToTensor()
+    ]
+    return transforms.Compose(transform_list)
+
+class ImgDataset(Dataset):
+    def __init__(self, root, transform = train_transform()):
+        super(ImgDataset, self).__init__()
+        self.root = root
+        self.paths = list(Path(self.root).glob('*'))
+        self.transform = transform
+
+    def __getitem__(self, index):
+        path = self.paths[index]
+        img = Image.open(str(path)).convert('RGB')
+        img = self.transform(img)
+        return img
+
+    def __len__(self):
+        return len(self.paths)
+
+    def name(self):
+        return 'FlatFolderDataset'

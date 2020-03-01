@@ -19,7 +19,7 @@ except ImportError:
     wandb = None
 
 from model import Generator, Discriminator, Encoder
-from dataset import MultiResolutionDataset
+from dataset import MultiResolutionDataset, ImgDataset
 from distributed import (
     get_rank,
     synchronize,
@@ -93,10 +93,13 @@ def calc_mean_std(feat, eps=1e-5):
 def transfer_loss(g_t_feats, content_feat, style_feats):
     loss_c = F.mse_loss(g_t_feats[-1], content_feat)
 
-    style_mean, style_std = calc_mean_std(style_feats)
-    target_mean, target_std = calc_mean_std(g_t_feats)
+    loss_s = 0
+    assert(len(g_t_feats) == len(style_feats))
+    for i in range(len(g_t_feats)):
+        style_mean, style_std = calc_mean_std(style_feats[i])
+        target_mean, target_std = calc_mean_std(g_t_feats[i])
 
-    loss_s = F.mse_loss(style_mean, target_mean) + F.mse_loss(style_std, target_std)
+        loss_s += F.mse_loss(style_mean, target_mean) + F.mse_loss(style_std, target_std)
 
     return loss_c, loss_s
 
@@ -140,7 +143,12 @@ def set_grad_none(model, targets):
             p.grad = None
 
 
-def train(args, loader, encoder, generator, discriminator, g_optim, d_optim, g_ema, device):
+def train(args, loader, content_loader, style_loader,
+          content_loader_path, style_loader_path,
+          content_loader_sample, style_loader_sample,
+          encoder, generator, discriminator,
+          g_optim, d_optim, g_ema,
+          device):
     loader = sample_data(loader)
 
     pbar = range(args.iter)
@@ -170,8 +178,10 @@ def train(args, loader, encoder, generator, discriminator, g_optim, d_optim, g_e
 
     # TODO: Use real data
     # sample_z = torch.randn(args.n_sample, args.latent, device=device)
-    style_imgs_sample = torch.zeros(args.n_sample, 3, 256, 256).to(device)
-    content_imgs_sample = torch.zeros(args.n_sample, 3, 256, 256).to(device)
+    # style_imgs_sample = torch.zeros(args.n_sample, 3, 256, 256).to(device)
+    # content_imgs_sample = torch.zeros(args.n_sample, 3, 256, 256).to(device)
+    style_imgs_sample = next(style_loader_sample).to(device)
+    content_imgs_sample = next(content_loader_sample).to(device)
 
     _1, _2, sample_z, sample_content = encoder(style_imgs_sample, content_imgs_sample)
 
@@ -190,11 +200,13 @@ def train(args, loader, encoder, generator, discriminator, g_optim, d_optim, g_e
         requires_grad(discriminator, True)
 
         # TODO: Use real data
-        style_imgs = torch.zeros(args.batch, 3, 256, 256).to(device)
-        content_imgs = torch.zeros(args.batch, 3, 256, 256).to(device)
+        # style_imgs = torch.zeros(args.batch, 3, 256, 256).to(device)
+        # content_imgs = torch.zeros(args.batch, 3, 256, 256).to(device)
+        style_imgs = next(style_loader).to(device)
+        content_imgs = next(content_loader).to(device)
         style_feats, content_feat, latent_code, content_code = encoder(style_imgs, content_imgs)
         # noise = mixing_noise(args.batch, args.latent, args.mixing, device)
-        fake_img, _ = generator(latent_code, content_code)
+        fake_img, _ = generator([latent_code], content_code)
         fake_pred = discriminator(fake_img)
 
         real_pred = discriminator(real_img)
@@ -226,11 +238,13 @@ def train(args, loader, encoder, generator, discriminator, g_optim, d_optim, g_e
         requires_grad(discriminator, False)
 
         # TODO: Use real data
-        style_imgs = torch.zeros(args.batch, 3, 256, 256).to(device)
-        content_imgs = torch.zeros(args.batch, 3, 256, 256).to(device)
+        # style_imgs = torch.zeros(args.batch, 3, 256, 256).to(device)
+        # content_imgs = torch.zeros(args.batch, 3, 256, 256).to(device)
+        style_imgs = next(style_loader).to(device)
+        content_imgs = next(content_loader).to(device)
         style_feats, content_feat, latent_code, content_code = encoder(style_imgs, content_imgs)
         # noise = mixing_noise(args.batch, args.latent, args.mixing, device)
-        fake_img, _ = generator(latent_code, content_code)
+        fake_img, _ = generator([latent_code], content_code)
         fake_pred = discriminator(fake_img)
         g_loss = g_nonsaturating_loss(fake_pred)
 
@@ -251,13 +265,15 @@ def train(args, loader, encoder, generator, discriminator, g_optim, d_optim, g_e
         if g_regularize:
             path_batch_size = max(1, args.batch // args.path_batch_shrink)
             # TODO: Use real data
-            style_imgs = torch.zeros(path_batch_size, 3, 256, 256).to(device)
-            content_imgs = torch.zeros(path_batch_size, 3, 256, 256).to(device)
+            # style_imgs = torch.zeros(path_batch_size, 3, 256, 256).to(device)
+            # content_imgs = torch.zeros(path_batch_size, 3, 256, 256).to(device)
+            style_imgs = next(style_loader_path).to(device)
+            content_imgs = next(content_loader_path).to(device)
             style_feats, content_feat, latent_code, content_code = encoder(style_imgs, content_imgs)
             #noise = mixing_noise(
             #    path_batch_size, args.latent, args.mixing, device
             #)
-            fake_img, latents = generator(latent_code, content_code, return_latents=True)
+            fake_img, latents = generator([latent_code], content_code, return_latents=True)
 
             path_loss, mean_path_length, path_lengths = g_path_regularize(
                 fake_img, latents, mean_path_length
@@ -317,7 +333,7 @@ def train(args, loader, encoder, generator, discriminator, g_optim, d_optim, g_e
             if i % 100 == 0:
                 with torch.no_grad():
                     g_ema.eval()
-                    sample, _ = g_ema([sample_z])
+                    sample, _ = g_ema([sample_z], sample_content)
                     utils.save_image(
                         sample,
                         f'sample/{str(i).zfill(6)}.png',
@@ -363,6 +379,12 @@ if __name__ == '__main__':
     parser.add_argument('--vgg_path', type=str, default="/home/huzy/models/vgg_normalised.pth")
     parser.add_argument('--content_weight', type=float, default=10.0)
     parser.add_argument('--style_weight', type=float, default=1.0)
+    parser.add_argument('--content_sample_path', type=str, default="/home/huzy/datasets/COCO/sample/")
+    parser.add_argument('--style_sample_path', type=str, default="/home/huzy/datasets/WikiArt/sample/")
+    parser.add_argument('--content_train_path', type=str, default="/home/huzy/datasets/COCO/train/")
+    parser.add_argument('--style_train_path', type=str, default="/home/huzy/datasets/WikiArt/train/")
+    parser.add_argument('--content_path_path', type=str, default="/home/huzy/datasets/COCO/path/")
+    parser.add_argument('--style_path_path', type=str, default="/home/huzy/datasets/WikiArt/path/")
 
     args = parser.parse_args()
 
@@ -459,7 +481,57 @@ if __name__ == '__main__':
         drop_last=True,
     )
 
+    content_sample_dataset = ImgDataset(args.content_sample_path)
+    style_sample_dataset = ImgDataset(args.style_sample_path)
+    content_loader_sample = iter(data.DataLoader(
+        content_sample_dataset,
+        batch_size=args.n_sample,
+        sampler=data_sampler(content_sample_dataset, shuffle=True, distributed=args.distributed),
+        drop_last=True,
+    ))
+    style_loader_sample = iter(data.DataLoader(
+        style_sample_dataset,
+        batch_size=args.n_sample,
+        sampler=data_sampler(style_sample_dataset, shuffle=True, distributed=args.distributed),
+        drop_last=True,
+    ))
+
+    content_dataset = ImgDataset(args.content_train_path)
+    style_dataset = ImgDataset(args.style_train_path)
+    content_loader = iter(data.DataLoader(
+        content_dataset,
+        batch_size=args.batch,
+        sampler=data_sampler(content_dataset, shuffle=True, distributed=args.distributed),
+        drop_last=True,
+    ))
+    style_loader = iter(data.DataLoader(
+        style_dataset,
+        batch_size=args.batch,
+        sampler=data_sampler(style_dataset, shuffle=True, distributed=args.distributed),
+        drop_last=True,
+    ))
+
+    content_path_dataset = ImgDataset(args.content_path_path)
+    style_path_dataset = ImgDataset(args.style_path_path)
+    path_batch_size = max(1, args.batch // args.path_batch_shrink)
+    content_loader_path = iter(data.DataLoader(
+        content_path_dataset,
+        batch_size=path_batch_size,
+        sampler=data_sampler(content_path_dataset, shuffle=True, distributed=args.distributed),
+        drop_last=True,
+    ))
+    style_loader_path = iter(data.DataLoader(
+        style_path_dataset,
+        batch_size=path_batch_size,
+        sampler=data_sampler(style_path_dataset, shuffle=True, distributed=args.distributed),
+        drop_last=True,
+    ))
+
     if get_rank() == 0 and wandb is not None and args.wandb:
         wandb.init(project='stylegan 2')
-
-    train(args, loader, encoder, generator, discriminator, g_optim, d_optim, g_ema, device)
+    train(args, loader, content_loader, style_loader,
+          content_loader_path, style_loader_path,
+          content_loader_sample, style_loader_sample,
+          encoder, generator, discriminator,
+          g_optim, d_optim, g_ema,
+          device)
