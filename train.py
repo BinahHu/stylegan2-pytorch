@@ -150,6 +150,13 @@ def train(args, loader, content_loader, style_loader,
           g_optim, d_optim, g_ema,
           device):
     loader = sample_data(loader)
+    content_loader = sample_data(content_loader)
+    style_loader = sample_data(style_loader)
+    content_loader_path = sample_data(content_loader_path)
+    style_loader_path = sample_data(style_loader_path)
+    content_loader_sample = sample_data(content_loader_sample)
+    style_loader_sample = sample_data(style_loader_sample)
+
 
     pbar = range(args.iter)
 
@@ -346,7 +353,7 @@ def train(args, loader, content_loader, style_loader,
                         range=(-1, 1),
                     )
 
-            if i % 10000 == 0:
+            if (i+1) % 5000 == 0:
                 torch.save(
                     {
                         'g': g_module.state_dict(),
@@ -355,7 +362,7 @@ def train(args, loader, content_loader, style_loader,
                         'g_optim': g_optim.state_dict(),
                         'd_optim': d_optim.state_dict(),
                     },
-                    f'checkpoint/{str(i).zfill(6)}.pt',
+                    f'checkpoint/{str(i+1).zfill(6)}.pt',
                 )
 
 
@@ -381,7 +388,7 @@ if __name__ == '__main__':
     parser.add_argument('--wandb', action='store_true')
     parser.add_argument('--local_rank', type=int, default=0)
     parser.add_argument('--vgg_path', type=str, default="/home/huzy/models/vgg_normalised.pth")
-    parser.add_argument('--content_weight', type=float, default=10.0)
+    parser.add_argument('--content_weight', type=float, default=1.0)
     parser.add_argument('--style_weight', type=float, default=1.0)
     parser.add_argument('--content_sample_path', type=str, default="/home/huzy/datasets/COCO/sample/")
     parser.add_argument('--style_sample_path', type=str, default="/home/huzy/datasets/WikiArt/sample/")
@@ -487,49 +494,49 @@ if __name__ == '__main__':
 
     content_sample_dataset = ImgDataset(args.content_sample_path)
     style_sample_dataset = ImgDataset(args.style_sample_path)
-    content_loader_sample = iter(data.DataLoader(
+    content_loader_sample = data.DataLoader(
         content_sample_dataset,
         batch_size=args.n_sample,
         sampler=data_sampler(content_sample_dataset, shuffle=True, distributed=args.distributed),
         drop_last=True,
-    ))
-    style_loader_sample = iter(data.DataLoader(
+    )
+    style_loader_sample = data.DataLoader(
         style_sample_dataset,
         batch_size=args.n_sample,
         sampler=data_sampler(style_sample_dataset, shuffle=True, distributed=args.distributed),
         drop_last=True,
-    ))
+    )
 
     content_dataset = ImgDataset(args.content_train_path)
     style_dataset = ImgDataset(args.style_train_path)
-    content_loader = iter(data.DataLoader(
+    content_loader = data.DataLoader(
         content_dataset,
         batch_size=args.batch,
         sampler=data_sampler(content_dataset, shuffle=True, distributed=args.distributed),
         drop_last=True,
-    ))
-    style_loader = iter(data.DataLoader(
+    )
+    style_loader = data.DataLoader(
         style_dataset,
         batch_size=args.batch,
         sampler=data_sampler(style_dataset, shuffle=True, distributed=args.distributed),
         drop_last=True,
-    ))
+    )
 
     content_path_dataset = ImgDataset(args.content_path_path)
     style_path_dataset = ImgDataset(args.style_path_path)
     path_batch_size = max(1, args.batch // args.path_batch_shrink)
-    content_loader_path = iter(data.DataLoader(
+    content_loader_path = data.DataLoader(
         content_path_dataset,
         batch_size=path_batch_size,
         sampler=data_sampler(content_path_dataset, shuffle=True, distributed=args.distributed),
         drop_last=True,
-    ))
-    style_loader_path = iter(data.DataLoader(
+    )
+    style_loader_path = data.DataLoader(
         style_path_dataset,
         batch_size=path_batch_size,
         sampler=data_sampler(style_path_dataset, shuffle=True, distributed=args.distributed),
         drop_last=True,
-    ))
+    )
 
     if get_rank() == 0 and wandb is not None and args.wandb:
         wandb.init(project='stylegan 2')
