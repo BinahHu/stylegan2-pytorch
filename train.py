@@ -341,7 +341,7 @@ def train(args, loader, content_loader, style_loader,
                     }
                 )
 
-            if i % 100 == 0:
+            if i % 1000 == 0:
                 with torch.no_grad():
                     g_ema.eval()
                     sample, _ = g_ema([sample_z], sample_content)
@@ -388,8 +388,8 @@ if __name__ == '__main__':
     parser.add_argument('--wandb', action='store_true')
     parser.add_argument('--local_rank', type=int, default=0)
     parser.add_argument('--vgg_path', type=str, default="/home/huzy/models/vgg_normalised.pth")
-    parser.add_argument('--content_weight', type=float, default=1.0)
-    parser.add_argument('--style_weight', type=float, default=1.0)
+    parser.add_argument('--content_weight', type=float, default=2.0)
+    parser.add_argument('--style_weight', type=float, default=0.5)
     parser.add_argument('--content_sample_path', type=str, default="/home/huzy/datasets/COCO/sample/")
     parser.add_argument('--style_sample_path', type=str, default="/home/huzy/datasets/WikiArt/sample/")
     parser.add_argument('--content_train_path', type=str, default="/home/huzy/datasets/COCO/train/")
