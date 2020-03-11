@@ -370,6 +370,7 @@ class Generator(nn.Module):
         size,
         style_dim,
         n_mlp,
+        init_feat_size=4,
         channel_multiplier=2,
         blur_kernel=[1, 3, 3, 1],
         lr_mlp=0.01,
@@ -405,26 +406,28 @@ class Generator(nn.Module):
 
         #self.input = ConstantInput(self.channels[4])
         self.conv1 = StyledConv(
-            self.channels[4], self.channels[4], 3, style_dim, blur_kernel=blur_kernel
+            self.channels[init_feat_size], self.channels[init_feat_size], 3, style_dim, blur_kernel=blur_kernel
         )
-        self.to_rgb1 = ToRGB(self.channels[4], style_dim, upsample=False)
+        self.to_rgb1 = ToRGB(self.channels[init_feat_size], style_dim, upsample=False)
 
         self.log_size = int(math.log(size, 2))
-        self.num_layers = (self.log_size - 2) * 2 + 1
+        self.init_log_size = int(math.log(init_feat_size, 2))
+        #self.num_layers = (self.log_size - 2) * 2 + 1
+        self.num_layers = (self.log_size - self.init_log_size) * 2 + 1
 
         self.convs = nn.ModuleList()
         self.upsamples = nn.ModuleList()
         self.to_rgbs = nn.ModuleList()
         self.noises = nn.Module()
 
-        in_channel = self.channels[4]
+        in_channel = self.channels[init_feat_size]
 
         for layer_idx in range(self.num_layers):
-            res = (layer_idx + 5) // 2
+            res = (layer_idx + 1) // 2 + self.init_log_size
             shape = [1, 1, 2 ** res, 2 ** res]
             self.noises.register_buffer(f'noise_{layer_idx}', torch.randn(*shape))
 
-        for i in range(3, self.log_size + 1):
+        for i in range(self.init_log_size + 1, self.log_size + 1):
             out_channel = self.channels[2 ** i]
 
             self.convs.append(
@@ -448,7 +451,7 @@ class Generator(nn.Module):
 
             in_channel = out_channel
 
-        self.n_latent = self.log_size * 2 - 2
+        self.n_latent = self.log_size * 2 - self.init_log_size
 
     def make_noise(self):
         device = self.input.input.device

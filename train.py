@@ -442,20 +442,20 @@ if __name__ == '__main__':
 
     args.latent = 512
     args.n_mlp = 8
-    args.init_feat_size = 4
+    args.init_feat_size = 32
 
     args.start_iter = 0
 
     encoder = Encoder(args.vgg_path, args.latent, args.init_feat_size).to(device)
     encoder.eval()
     generator = Generator(
-        args.size, args.latent, args.n_mlp, channel_multiplier=args.channel_multiplier
+        args.size, args.latent, args.n_mlp, args.init_feat_size, channel_multiplier=args.channel_multiplier
     ).to(device)
     discriminator = Discriminator(
         args.size, channel_multiplier=args.channel_multiplier
     ).to(device)
     g_ema = Generator(
-        args.size, args.latent, args.n_mlp, channel_multiplier=args.channel_multiplier
+        args.size, args.latent, args.n_mlp, args.init_feat_size, channel_multiplier=args.channel_multiplier
     ).to(device)
     g_ema.eval()
     accumulate(g_ema, generator, 0)
