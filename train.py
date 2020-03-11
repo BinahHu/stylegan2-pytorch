@@ -11,6 +11,8 @@ from torch.utils import data
 import torch.distributed as dist
 from torchvision import transforms, utils
 from tqdm import tqdm
+from torch.utils.tensorboard import SummaryWriter
+writer = SummaryWriter('./log')
 
 try:
     import wandb
@@ -189,6 +191,20 @@ def train(args, loader, content_loader, style_loader,
     # content_imgs_sample = torch.zeros(args.n_sample, 3, 256, 256).to(device)
     style_imgs_sample = next(style_loader_sample).to(device)
     content_imgs_sample = next(content_loader_sample).to(device)
+    utils.save_image(
+        content_imgs_sample,
+        f'sample/content.png',
+        nrow=int(args.n_sample ** 0.5),
+        normalize=True,
+        range=(-1, 1),
+    )
+    utils.save_image(
+        style_imgs_sample,
+        f'sample/style.png',
+        nrow=int(args.n_sample ** 0.5),
+        normalize=True,
+        range=(-1, 1),
+    )
 
     _1, _2, sample_z, sample_content = encoder(style_imgs_sample, content_imgs_sample)
 
@@ -326,6 +342,16 @@ def train(args, loader, content_loader, style_loader,
                     f'path: {path_loss_val:.4f}; mean path: {mean_path_length_avg:.4f}'
                 )
             )
+            
+            writer.add_scalar('d_loss_val', d_loss_val, i)
+            writer.add_scalar('g_loss_val', g_loss_val, i)
+            writer.add_scalar('c_loss_val', c_loss_val, i)
+            writer.add_scalar('s_loss_val', s_loss_val, i)
+            writer.add_scalar('path_loss_val', path_loss_val, i)
+            writer.add_scalar('r1_val', r1_val, i)
+            writer.add_scalar('real_score_val', real_score_val, i)
+            writer.add_scalar('fake_score_val', fake_score_val, i)
+            writer.add_scalar('path_length_val', path_length_val, i)
 
             if wandb and args.wandb:
                 wandb.log(
@@ -364,6 +390,13 @@ def train(args, loader, content_loader, style_loader,
                     },
                     f'checkpoint/{str(i+1).zfill(6)}.pt',
                 )
+
+def sample_transform():
+    transform_list = [
+        transforms.Resize(size=(256, 256)),
+        transforms.ToTensor()
+    ]
+    return transforms.Compose(transform_list)
 
 
 if __name__ == '__main__':
@@ -492,8 +525,8 @@ if __name__ == '__main__':
         drop_last=True,
     )
 
-    content_sample_dataset = ImgDataset(args.content_sample_path)
-    style_sample_dataset = ImgDataset(args.style_sample_path)
+    content_sample_dataset = ImgDataset(args.content_sample_path, sample_transform())
+    style_sample_dataset = ImgDataset(args.style_sample_path, sample_transform())
     content_loader_sample = data.DataLoader(
         content_sample_dataset,
         batch_size=args.n_sample,
