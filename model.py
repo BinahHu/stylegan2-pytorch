@@ -403,7 +403,7 @@ class Generator(nn.Module):
             1024: 16 * channel_multiplier,
         }
 
-        self.input = ConstantInput(self.channels[4])
+        #self.input = ConstantInput(self.channels[4])
         self.conv1 = StyledConv(
             self.channels[4], self.channels[4], 3, style_dim, blur_kernel=blur_kernel
         )
@@ -523,7 +523,8 @@ class Generator(nn.Module):
 
             latent = torch.cat([latent, latent2], 1)
 
-        out = self.input(latent)
+        #out = self.input(latent)
+        out = content
         out = self.conv1(out, latent[:, 0], noise=noise[0])
 
         skip = self.to_rgb1(out, latent[:, 1])
