@@ -423,25 +423,32 @@ if __name__ == '__main__':
     parser.add_argument('--vgg_path', type=str, default="/home/huzy/models/vgg_normalised.pth")
     parser.add_argument('--content_weight', type=float, default=2.0)
     parser.add_argument('--style_weight', type=float, default=0.5)
-    parser.add_argument('--content_sample_path', type=str, default="/home/huzy/datasets/COCO/sample/")
+    parser.add_argument('--content_sample_path', type=str, default="/home/huzy/datasets/lsun/sample/")
     parser.add_argument('--style_sample_path', type=str, default="/home/huzy/datasets/WikiArt/sample/")
-    parser.add_argument('--content_train_path', type=str, default="/home/huzy/datasets/COCO/train/")
+    parser.add_argument('--content_train_path', type=str, default="/home/huzy/datasets/lsun/train/")
     parser.add_argument('--style_train_path', type=str, default="/home/huzy/datasets/WikiArt/train/")
-    parser.add_argument('--content_path_path', type=str, default="/home/huzy/datasets/COCO/path/")
+    parser.add_argument('--content_path_path', type=str, default="/home/huzy/datasets/lsun/path/")
     parser.add_argument('--style_path_path', type=str, default="/home/huzy/datasets/WikiArt/path/")
 
     args = parser.parse_args()
 
     log_path = os.path.join('./log', args.name)
-    if os.path.exists(log_path):
-        os.removedirs(log_path)
-    os.mkdir(log_path)
+    if args.ckpt != None:
+        if os.path.exists(log_path):
+            for f in os.listdir(log_path):
+                os.remove(os.path.join(log_path, f))
+        else:
+            os.mkdir(log_path)
     writer = SummaryWriter(log_path)
 
     save_path = os.path.join('./checkpoint', args.name)
-    if os.path.exists(save_path):
-        os.removedirs(save_path)
-    os.mkdir(save_path)
+
+    if args.ckpt != None:
+        if os.path.exists(save_path):
+            for f in os.listdir(save_path):
+                os.remove(os.path.join(save_path, f))
+        else:
+            os.mkdir(save_path)
     args.save_path = save_path
 
     n_gpu = int(os.environ['WORLD_SIZE']) if 'WORLD_SIZE' in os.environ else 1
