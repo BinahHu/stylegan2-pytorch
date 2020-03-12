@@ -433,7 +433,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     log_path = os.path.join('./log', args.name)
-    if args.ckpt != None:
+    if args.ckpt == None:
         if os.path.exists(log_path):
             for f in os.listdir(log_path):
                 os.remove(os.path.join(log_path, f))
@@ -443,7 +443,7 @@ if __name__ == '__main__':
 
     save_path = os.path.join('./checkpoint', args.name)
 
-    if args.ckpt != None:
+    if args.ckpt == None:
         if os.path.exists(save_path):
             for f in os.listdir(save_path):
                 os.remove(os.path.join(save_path, f))
