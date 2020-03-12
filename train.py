@@ -12,7 +12,6 @@ import torch.distributed as dist
 from torchvision import transforms, utils
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
-writer = SummaryWriter('./log')
 
 try:
     import wandb
@@ -97,7 +96,7 @@ def transfer_loss(g_t_feats, content_feat, style_feats):
 
     loss_s = 0
     assert(len(g_t_feats) == len(style_feats))
-    for i in range(len(g_t_feats)):
+    for i in range(len(g_t_feats)-1):
         style_mean, style_std = calc_mean_std(style_feats[i])
         target_mean, target_std = calc_mean_std(g_t_feats[i])
 
@@ -388,7 +387,7 @@ def train(args, loader, content_loader, style_loader,
                         'g_optim': g_optim.state_dict(),
                         'd_optim': d_optim.state_dict(),
                     },
-                    f'checkpoint/{str(i+1).zfill(6)}.pt',
+                    os.path.join(args.save_path, f'{str(i+1).zfill(6)}.pt'),
                 )
 
 def sample_transform():
@@ -416,6 +415,7 @@ if __name__ == '__main__':
     parser.add_argument('--g_reg_every', type=int, default=4)
     parser.add_argument('--mixing', type=float, default=0.9)
     parser.add_argument('--ckpt', type=str, default=None)
+    parser.add_argument('--name', type=str, default='hope')
     parser.add_argument('--lr', type=float, default=0.002)
     parser.add_argument('--channel_multiplier', type=int, default=2)
     parser.add_argument('--wandb', action='store_true')
@@ -431,6 +431,18 @@ if __name__ == '__main__':
     parser.add_argument('--style_path_path', type=str, default="/home/huzy/datasets/WikiArt/path/")
 
     args = parser.parse_args()
+
+    log_path = os.path.join('./log', args.name)
+    if os.path.exists(log_path):
+        os.removedirs(log_path)
+    os.mkdir(log_path)
+    writer = SummaryWriter(log_path)
+
+    save_path = os.path.join('./checkpoint', args.name)
+    if os.path.exists(save_path):
+        os.removedirs(save_path)
+    os.mkdir(save_path)
+    args.save_path = save_path
 
     n_gpu = int(os.environ['WORLD_SIZE']) if 'WORLD_SIZE' in os.environ else 1
     args.distributed = n_gpu > 1
