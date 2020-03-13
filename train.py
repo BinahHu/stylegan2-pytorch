@@ -408,6 +408,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch', type=int, default=16)
     parser.add_argument('--n_sample', type=int, default=64)
     parser.add_argument('--size', type=int, default=256)
+    parser.add_argument('--init_feat_size', type=int, default=32)
     parser.add_argument('--r1', type=float, default=10)
     parser.add_argument('--path_regularize', type=float, default=2)
     parser.add_argument('--path_batch_shrink', type=int, default=2)
@@ -461,7 +462,6 @@ if __name__ == '__main__':
 
     args.latent = 512
     args.n_mlp = 8
-    args.init_feat_size = 32
 
     args.start_iter = 0
 
