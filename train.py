@@ -205,7 +205,7 @@ def train(args, loader, content_loader, style_loader,
         range=(-1, 1),
     )
 
-    _1, _2, sample_z, sample_content = encoder(style_imgs_sample, content_imgs_sample)
+    _1, _2, sample_z, sample_content = encoder(content_imgs_sample, style_imgs_sample)
 
     for idx in pbar:
         i = idx + args.start_iter
@@ -226,7 +226,7 @@ def train(args, loader, content_loader, style_loader,
         # content_imgs = torch.zeros(args.batch, 3, 256, 256).to(device)
         style_imgs = next(style_loader).to(device)
         content_imgs = next(content_loader).to(device)
-        style_feats, content_feat, latent_code, content_code = encoder(style_imgs, content_imgs)
+        style_feats, content_feat, latent_code, content_code = encoder(content_imgs, style_imgs)
         # noise = mixing_noise(args.batch, args.latent, args.mixing, device)
         fake_img, _ = generator([latent_code], content_code)
         fake_pred = discriminator(fake_img)
@@ -264,7 +264,7 @@ def train(args, loader, content_loader, style_loader,
         # content_imgs = torch.zeros(args.batch, 3, 256, 256).to(device)
         style_imgs = next(style_loader).to(device)
         content_imgs = next(content_loader).to(device)
-        style_feats, content_feat, latent_code, content_code = encoder(style_imgs, content_imgs)
+        style_feats, content_feat, latent_code, content_code = encoder(content_imgs, style_imgs)
         # noise = mixing_noise(args.batch, args.latent, args.mixing, device)
         fake_img, _ = generator([latent_code], content_code)
         fake_pred = discriminator(fake_img)
@@ -293,7 +293,7 @@ def train(args, loader, content_loader, style_loader,
             # content_imgs = torch.zeros(path_batch_size, 3, 256, 256).to(device)
             style_imgs = next(style_loader_path).to(device)
             content_imgs = next(content_loader_path).to(device)
-            style_feats, content_feat, latent_code, content_code = encoder(style_imgs, content_imgs)
+            style_feats, content_feat, latent_code, content_code = encoder(content_imgs, style_imgs)
             #noise = mixing_noise(
             #    path_batch_size, args.latent, args.mixing, device
             #)
