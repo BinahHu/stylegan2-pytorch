@@ -187,20 +187,21 @@ def train(args, content_loader, style_loader,
     # content_imgs_sample = torch.zeros(args.n_sample, 3, 256, 256).to(device)
     style_imgs_sample = next(style_loader_sample).to(device)
     content_imgs_sample = next(content_loader_sample).to(device)
-    utils.save_image(
-        content_imgs_sample,
-        f'sample/content.png',
-        nrow=int(args.n_sample ** 0.5),
-        normalize=True,
-        range=(-1, 1),
-    )
-    utils.save_image(
-        style_imgs_sample,
-        f'sample/style.png',
-        nrow=int(args.n_sample ** 0.5),
-        normalize=True,
-        range=(-1, 1),
-    )
+    if get_rank() == 0:
+        utils.save_image(
+            content_imgs_sample,
+            f'sample/content.png',
+            nrow=int(args.n_sample ** 0.5),
+            normalize=True,
+            range=(-1, 1),
+        )
+        utils.save_image(
+            style_imgs_sample,
+            f'sample/style.png',
+            nrow=int(args.n_sample ** 0.5),
+            normalize=True,
+            range=(-1, 1),
+        )
 
     _1, _2, sample_z, sample_content = encoder(content_imgs_sample, style_imgs_sample)
 
