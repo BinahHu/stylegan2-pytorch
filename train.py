@@ -192,14 +192,12 @@ def train(args, content_loader, style_loader,
             content_imgs_sample,
             f'sample/content.png',
             nrow=int(args.n_sample ** 0.5),
-            normalize=True,
             range=(-1, 1),
         )
         utils.save_image(
             style_imgs_sample,
             f'sample/style.png',
             nrow=int(args.n_sample ** 0.5),
-            normalize=True,
             range=(-1, 1),
         )
 
@@ -316,7 +314,6 @@ def train(args, content_loader, style_loader,
                         sample,
                         f'sample/{str(i).zfill(6)}.png',
                         nrow=int(args.n_sample ** 0.5),
-                        normalize=True,
                         range=(-1, 1),
                     )
 
