@@ -43,19 +43,31 @@ class MultiResolutionDataset(Dataset):
 
         return img
 
-def train_transform():
+def train_transform(resolution=256):
     transform_list = [
-        transforms.Resize(size=(512, 512)),
-        transforms.RandomCrop(256),
+        transforms.Resize(size=(resolution * 2, resolution * 2)),
+        transforms.RandomCrop(resolution),
+        transforms.ToTensor()
+    ]
+    return transforms.Compose(transform_list)
+
+def sample_transform(resolution=256):
+    transform_list = [
+        transforms.Resize(size=(resolution, resolution)),
         transforms.ToTensor()
     ]
     return transforms.Compose(transform_list)
 
 class ImgDataset(Dataset):
-    def __init__(self, root, transform = train_transform()):
+    def __init__(self, root, size=256, type='train'):
         super(ImgDataset, self).__init__()
         self.root = root
         self.paths = list(Path(self.root).glob('*'))
+        transform = None
+        if type == 'train':
+            transform = train_transform(size)
+        elif type == 'sample':
+            transform = sample_transform(size)
         self.transform = transform
 
     def __getitem__(self, index):
