@@ -191,14 +191,12 @@ def train(args, loader, content_loader, style_loader,
             content_imgs_sample,
             f'sample/content.png',
             nrow=int(args.n_sample ** 0.5),
-            normalize=True,
             range=(-1, 1),
         )
         utils.save_image(
             style_imgs_sample,
             f'sample/style.png',
             nrow=int(args.n_sample ** 0.5),
-            normalize=True,
             range=(-1, 1),
         )
 
@@ -212,8 +210,7 @@ def train(args, loader, content_loader, style_loader,
 
             break
 
-        real_img = next(loader)
-        real_img = real_img.to(device)
+
 
         requires_grad(generator, False)
         requires_grad(discriminator, True)
@@ -221,11 +218,14 @@ def train(args, loader, content_loader, style_loader,
 
         style_imgs = next(style_loader).to(device)
         content_imgs = next(content_loader).to(device)
+        real_img = next(loader)
+        real_img = real_img.to(device)
         style_feats, content_feat, latent_code, content_code = encoder(content_imgs, style_imgs)
-        # noise = mixing_noise(args.batch, args.latent, args.mixing, device)
         fake_img, _ = generator([latent_code], content_code)
         fake_pred = discriminator(fake_img)
 
+        # Directly use style img as real img
+        # real_img  = style_imgs
         real_pred = discriminator(real_img)
         d_loss = d_logistic_loss(real_pred, fake_pred)
 
@@ -258,7 +258,6 @@ def train(args, loader, content_loader, style_loader,
         style_imgs = next(style_loader).to(device)
         content_imgs = next(content_loader).to(device)
         style_feats, content_feat, latent_code, content_code = encoder(content_imgs, style_imgs)
-        # noise = mixing_noise(args.batch, args.latent, args.mixing, device)
         fake_img, _ = generator([latent_code], content_code)
         fake_pred = discriminator(fake_img)
         g_loss = g_nonsaturating_loss(fake_pred)
@@ -361,7 +360,6 @@ def train(args, loader, content_loader, style_loader,
                         sample,
                         f'sample/{str(i).zfill(6)}.png',
                         nrow=int(args.n_sample ** 0.5),
-                        normalize=True,
                         range=(-1, 1),
                     )
 
@@ -394,7 +392,6 @@ if __name__ == '__main__':
     parser.add_argument('--iter', type=int, default=800000)
     parser.add_argument('--batch', type=int, default=16)
     parser.add_argument('--n_sample', type=int, default=64)
-    parser.add_argument('--size', type=int, default=256)
     parser.add_argument('--size', type=int, default=256)
     parser.add_argument('--init_feat_size', type=int, default=32)
     parser.add_argument('--r1', type=float, default=10)
