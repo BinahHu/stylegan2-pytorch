@@ -184,10 +184,6 @@ def train(args, loader, content_loader, style_loader,
         
     accum = 0.5 ** (32 / (10 * 1000))
 
-    # TODO: Use real data
-    # sample_z = torch.randn(args.n_sample, args.latent, device=device)
-    # style_imgs_sample = torch.zeros(args.n_sample, 3, 256, 256).to(device)
-    # content_imgs_sample = torch.zeros(args.n_sample, 3, 256, 256).to(device)
     style_imgs_sample = next(style_loader_sample).to(device)
     content_imgs_sample = next(content_loader_sample).to(device)
     if get_rank() == 0:
@@ -222,9 +218,7 @@ def train(args, loader, content_loader, style_loader,
         requires_grad(generator, False)
         requires_grad(discriminator, True)
 
-        # TODO: Use real data
-        # style_imgs = torch.zeros(args.batch, 3, 256, 256).to(device)
-        # content_imgs = torch.zeros(args.batch, 3, 256, 256).to(device)
+
         style_imgs = next(style_loader).to(device)
         content_imgs = next(content_loader).to(device)
         style_feats, content_feat, latent_code, content_code = encoder(content_imgs, style_imgs)
@@ -260,9 +254,7 @@ def train(args, loader, content_loader, style_loader,
         requires_grad(generator, True)
         requires_grad(discriminator, False)
 
-        # TODO: Use real data
-        # style_imgs = torch.zeros(args.batch, 3, 256, 256).to(device)
-        # content_imgs = torch.zeros(args.batch, 3, 256, 256).to(device)
+
         style_imgs = next(style_loader).to(device)
         content_imgs = next(content_loader).to(device)
         style_feats, content_feat, latent_code, content_code = encoder(content_imgs, style_imgs)
@@ -288,16 +280,10 @@ def train(args, loader, content_loader, style_loader,
         g_regularize = i % args.g_reg_every == 0
 
         if g_regularize:
-            path_batch_size = max(1, args.batch // args.path_batch_shrink)
-            # TODO: Use real data
-            # style_imgs = torch.zeros(path_batch_size, 3, 256, 256).to(device)
-            # content_imgs = torch.zeros(path_batch_size, 3, 256, 256).to(device)
             style_imgs = next(style_loader_path).to(device)
             content_imgs = next(content_loader_path).to(device)
             style_feats, content_feat, latent_code, content_code = encoder(content_imgs, style_imgs)
-            #noise = mixing_noise(
-            #    path_batch_size, args.latent, args.mixing, device
-            #)
+
             fake_img, latents = generator([latent_code], content_code, return_latents=True)
 
             path_loss, mean_path_length, path_lengths = g_path_regularize(
@@ -408,6 +394,7 @@ if __name__ == '__main__':
     parser.add_argument('--iter', type=int, default=800000)
     parser.add_argument('--batch', type=int, default=16)
     parser.add_argument('--n_sample', type=int, default=64)
+    parser.add_argument('--size', type=int, default=256)
     parser.add_argument('--size', type=int, default=256)
     parser.add_argument('--init_feat_size', type=int, default=32)
     parser.add_argument('--r1', type=float, default=10)
@@ -545,8 +532,8 @@ if __name__ == '__main__':
         drop_last=True,
     )
 
-    content_sample_dataset = ImgDataset(args.content_sample_path, sample_transform())
-    style_sample_dataset = ImgDataset(args.style_sample_path, sample_transform())
+    content_sample_dataset = ImgDataset(args.content_sample_path, args.size, 'sample')
+    style_sample_dataset = ImgDataset(args.style_sample_path, args.size, 'sample')
     content_loader_sample = data.DataLoader(
         content_sample_dataset,
         batch_size=args.n_sample,
@@ -560,8 +547,8 @@ if __name__ == '__main__':
         drop_last=True,
     )
 
-    content_dataset = ImgDataset(args.content_train_path)
-    style_dataset = ImgDataset(args.style_train_path)
+    content_dataset = ImgDataset(args.content_train_path, args.size, 'train')
+    style_dataset = ImgDataset(args.style_train_path, args.size, 'train')
     content_loader = data.DataLoader(
         content_dataset,
         batch_size=args.batch,
@@ -575,8 +562,8 @@ if __name__ == '__main__':
         drop_last=True,
     )
 
-    content_path_dataset = ImgDataset(args.content_path_path)
-    style_path_dataset = ImgDataset(args.style_path_path)
+    content_path_dataset = ImgDataset(args.content_path_path, args.size, 'train')
+    style_path_dataset = ImgDataset(args.style_path_path, args.size, 'train')
     path_batch_size = max(1, args.batch // args.path_batch_shrink)
     content_loader_path = data.DataLoader(
         content_path_dataset,
