@@ -205,6 +205,8 @@ def train(args, loader, content_loader, style_loader,
     for idx in pbar:
         i = idx + args.start_iter
 
+        train_adjust_lr([d_optim, g_optim], i, args)
+
         if i > args.iter:
             print('Done!')
 
@@ -218,14 +220,14 @@ def train(args, loader, content_loader, style_loader,
 
         style_imgs = next(style_loader).to(device)
         content_imgs = next(content_loader).to(device)
-        real_img = next(loader)
-        real_img = real_img.to(device)
+        # real_img = next(loader)
+        # real_img = real_img.to(device)
         style_feats, content_feat, latent_code, content_code = encoder(content_imgs, style_imgs)
         fake_img, _ = generator([latent_code], content_code)
         fake_pred = discriminator(fake_img)
 
         # Directly use style img as real img
-        # real_img  = style_imgs
+        real_img  = style_imgs
         real_pred = discriminator(real_img)
         d_loss = d_logistic_loss(real_pred, fake_pred)
 
@@ -382,6 +384,14 @@ def sample_transform():
     ]
     return transforms.Compose(transform_list)
 
+def train_adjust_lr(optimizers, iteration, args):
+    current_ratio = iteration - args.start_iter
+    current_ratio = float(current_ratio) / float(args.iter)
+    lr = math.cos(math.pi * current_ratio * 0.5) * args.lr
+    for optimizer in optimizers:
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+    return None
 
 if __name__ == '__main__':
     device = 'cuda'
